@@ -46,3 +46,4 @@ google-genai
 
 protobuf~=5.29.5
 ipython~=9.4.0
+streamlit

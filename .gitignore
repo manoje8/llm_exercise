@@ -1,3 +1,7 @@
 .env
 llms
 .idea
+
+# Byte-code files
+*.pyc
+__pycache__/

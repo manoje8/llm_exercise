@@ -1,37 +1,16 @@
-import os
-
+import json
+import ollama
 import openai
 import requests
 from bs4 import BeautifulSoup
-from dotenv import load_dotenv
 from google import genai
-from openai import OpenAI
-
-load_dotenv(override=True)
-
-choose = int(input("Which model do you want to use? \n 1. GEMINI\n 2. OPEN API\n>> "))
-
-key = ""
-if choose == 1:
-    key = "GEMINI_API_KEY"
-elif choose == 2:
-    key = "OPENAI_API_KEY"
-
-api_key = os.getenv(key)
-
-if not api_key:
-    print("No API key was found")
-elif api_key.strip() != api_key:
-    print("An API key was found, but it look like it might have some space or tab character")
-else:
-    print("Good! API key found")
 
 
-openai = OpenAI()
 
 class Website:
-    def __init__(self, url):
+    def __init__(self, url, choose):
         self.url = url
+        self.choose = choose
 
         response = requests.get(url)
         soup = BeautifulSoup(response.content, 'html.parser')
@@ -69,21 +48,90 @@ class Website:
 
     def summarize(self):
         user_response = self.user_prompt()
-        result = None
-        if choose == 1:
+        if self.choose == 1:
             print("GEMINI Loading...")
             response = genai.Client().models.generate_content(
                 model="gemini-2.5-flash",
                 contents=user_response
             )
-            result = response.text
-        elif choose == 2:
+            return response.text
+        elif self.choose == 2:
             print('OPEN AI Loading...')
             response = openai.chat.completions.create(
                 model= 'gpt-4o-mini',
                 messages = self.messages_for()
             )
             result = response.choices[0].message.content
-        return result
+            return result
+        elif self.choose == 3:
+            print("OLLAMA Loading...")
+            result = ollama.chat(model="llama3.2", messages=self.messages_for())
+            return result['message']['content']
 
+    def link_system_prompt(self):
+        return (
+            "You are given a list of links from a company's website. "
+            "Your task is to identify which links are relevant to include in a company brochure "
+            "(e.g., About, Company, Careers, Team, Leadership, News, Contact). "
+            "Exclude Terms of Service, Privacy, and email links.\n\n"
+            "Respond *only* with valid JSON, following this format:\n"
+            "{\n"
+            '  "links": [\n'
+            '    {"type": "about page", "url": "https://example.com/about"},\n'
+            '    {"type": "careers page", "url": "https://example.com/careers"}\n'
+            "  ]\n"
+            "}"
+        )
+
+    def get_links_user_prompt(self, website):
+        user_prompt = f"Here is the list of links on the website of {website.url} - "
+        user_prompt += "please decide which of these are relevant web links for a brochure about the company, respond with the full https URL in JSON format. \
+    Do not include Terms of Service, Privacy, email links.\n"
+        user_prompt += "Links (some might be relative links):\n"
+        user_prompt += "\n".join(website.links)
+        return user_prompt
+
+    def get_links(self, url):
+        website = Website(url, self.choose)
+        contents = self.link_system_prompt() + self.get_links_user_prompt(website)
+        if self.choose == 3:
+            response = ollama.chat(
+                model='llama3.2',
+                messages=[
+                    {"role": "system", "content": self.link_system_prompt()},
+                    {"role": "user", "content": self.get_links_user_prompt(website)}
+                ],
+            )
+            jsonValue = response['message']['content']
+            # Convert JSON string to dictionary
+            if isinstance(jsonValue, str):
+                jsonValue = json.loads(jsonValue)
+            return jsonValue
+        else:
+            response = genai.Client().models.generate_content(
+                model="gemini-2.5-flash",
+                contents=contents
+            )
+            raw_text = response.text.strip()
+            # Try to parse JSON safely
+            try:
+                start = raw_text.find('{')
+                end = raw_text.rfind('}') + 1
+                json_text = raw_text[start:end]
+                data = json.loads(json_text)
+            except Exception as e:
+                print("⚠️ Error parsing JSON:", e)
+                return {"links": []}
+
+            return data
+
+    def get_all_details(self, url):
+        result = "Landing page:\n"
+        result += Website(url, self.choose).get_contents()
+        links = self.get_links(url)
+        print("Found links:", links)
+        for link in links["links"]:
+            result += f"\n\n{link['type']}\n"
+            result += Website(link["url"], self.choose).get_contents()
+        return result
 
