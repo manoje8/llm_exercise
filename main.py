@@ -1,4 +1,5 @@
 import os
+import streamlit as st
 from week_1.simple_agent import Agent
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -9,27 +10,30 @@ from week_1.web_scraping import Website
 def choose_model():
     load_dotenv(override=True)
 
-    choose = int(input("Which model do you want to use? \n 1. GEMINI\n 2. OPEN API \n3. Ollama\n>> "))
+    choose = st.selectbox(
+        "Which model do you want to use?",
+        ("GEMINI", "OPEN API", "OLLAMA"),
+    )
 
     key = ""
-    if choose == 1:
+    if choose == "GEMINI":
         key = "GEMINI_API_KEY"
-    elif choose == 2:
+    elif choose == "OPEN API":
         key = "OPENAI_API_KEY"
-    elif choose == 3:
+    elif choose == "OLLAMA":
         key = "OLLAMA_API"
     else:
-        print("Invalid choice!")
+        st.text("Invalid choice!")
         return None
 
     api_key = os.getenv(key)
 
     if not api_key:
-        print("No API key was found")
+        st.text("No API key was found")
     elif api_key.strip() != api_key:
-        print("An API key was found, but it look like it might have some space or tab character")
+        st.text("An API key was found, but it look like it might have some space or tab character")
     else:
-        print("Good! API key found")
+        st.text("Good! API key found")
 
     return {
         "model_choice": choose,
@@ -38,39 +42,59 @@ def choose_model():
     }
 
 def summarize(model):
-    user_input = input("Enter the website URL you want to summarize: ").strip()
+    st.header("🌐 Webpage Summarizer")
+    user_input = st.text_input("Enter the website URL you want to summarize: ")
 
     # Ensure proper format
-    if not user_input.startswith("http"):
+    if user_input and not user_input.startswith("http"):
         user_input = "https://" + user_input
 
-    try:
-        # Summarize website
-        website = Website(user_input, model["model_choice"])
-        print("\nWebsite Summary:\n")
-        print(website.summarize())
+    if st.button("Send"):
+        try:
+            # Summarize website
+            website = Website(user_input, model["model_choice"])
+            st.text("\nWebsite Summary:\n")
+            st.markdown(website.summarize())
 
-        generate_brochure = input("\nDo you want to generate the company brochure? (y/n): ").strip().lower()
-        if generate_brochure == "y":
-            print("\n Generating brochure details...\n")
-            details = website.get_all_details(user_input)
-            print(details)
+            generate_brochure =  st.checkbox("Generate company brochure?")
 
-    except Exception as e:
-        print(f"\n⚠️ Error occurred: {e}")
+            if generate_brochure:
+                st.text("\n Generating brochure details...\n")
+                details = website.get_all_details(user_input)
+                st.markdown(details)
+                st.stop()
+
+        except Exception as e:
+            st.text(f"\n⚠️ Error occurred: {e}")
 
 def agent(model):
-    user_input = input("")
-    chat = Agent(user_input, model['model_choice'])
-    print(chat.response())
+    st.header("💬 Chat Agent")
+    user_input = st.text_area("Ask something:")
+
+    if st.button("Send"):
+        if user_input.strip():
+            chat = Agent(user_input, model['model_choice'])
+            st.markdown(chat.response())
+            st.stop()
+        else:
+            st.warning("Please enter a message.")
 
 def main():
+    st.title("LLM practice")
+
     model = choose_model()
     if not model:
-        print("Exiting due to missing model configuration.")
-        return
-    # summarize(model)
-    agent(model)
+        st.text("Exiting due to missing model configuration.")
+        st.stop()
+    choose = st.radio(
+        "Which one do you want to try?",
+        ("Web page summarize", "Chat Bot")
+    )
+
+    if choose == "Web page summarize":
+        summarize(model)
+    else:
+        agent(model)
 
 if __name__ == "__main__":
     main()

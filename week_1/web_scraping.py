@@ -48,14 +48,14 @@ class Website:
 
     def summarize(self):
         user_response = self.user_prompt()
-        if self.choose == 1:
+        if self.choose == "GEMINI":
             print("GEMINI Loading...")
             response = genai.Client().models.generate_content(
                 model="gemini-2.5-flash",
                 contents=user_response
             )
             return response.text
-        elif self.choose == 2:
+        elif self.choose == "OPEN AI":
             print('OPEN AI Loading...')
             response = openai.chat.completions.create(
                 model= 'gpt-4o-mini',
@@ -63,7 +63,7 @@ class Website:
             )
             result = response.choices[0].message.content
             return result
-        elif self.choose == 3:
+        elif self.choose == "OLLAMA":
             print("OLLAMA Loading...")
             result = ollama.chat(model="llama3.2", messages=self.messages_for())
             return result['message']['content']
@@ -94,7 +94,7 @@ class Website:
     def get_links(self, url):
         website = Website(url, self.choose)
         contents = self.link_system_prompt() + self.get_links_user_prompt(website)
-        if self.choose == 3:
+        if self.choose == "OLLAMA":
             response = ollama.chat(
                 model='llama3.2',
                 messages=[
