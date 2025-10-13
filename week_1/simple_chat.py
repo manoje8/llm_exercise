@@ -1,7 +1,7 @@
 import ollama
 
 
-class Agent:
+class Chat:
     def __init__(self, data, choose):
         self.prompt = data
         self.choose = choose
@@ -20,5 +20,6 @@ class Agent:
     def response(self):
         print("Loading...")
         response = ollama.chat(model='llama3.2', messages=self.messages_for())
+        print(response)
         return response['message']['content']
 
