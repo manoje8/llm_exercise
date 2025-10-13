@@ -68,10 +68,6 @@ class AirAssistance:
 
             response = ollama.chat(model="llama3.2", messages=messages, options={"temperature": 0})
 
-            print("trial", response)
-
-
-        print("---FINAL---", response)
         return response['message']['content']
 
     def handle_tool_calls(self, tool_call):
