@@ -1,6 +1,5 @@
-import json
-
-import ollama
+from google import genai
+from google.genai import types
 
 
 class AirAssistance:
@@ -10,9 +9,9 @@ class AirAssistance:
     Always be accurate. If you don't know the answer, say so.
     
     When using tools:
+        - For greeting messages, general questions, or non-price inquiries, respond normally without tools
         - For ticket prices, ONLY use the get_ticket_price tool with ONLY the destination_city parameter
         - Example: Customer: "How much to London?" → Use tool with {"destination_city": "london"}
-        - Do NOT include airports, dates, or other parameters
     """
 
     ticket_prices = {"london": "$799", "paris": "$899", "tokyo": "$1400", "berlin": "$499"}
@@ -22,63 +21,65 @@ class AirAssistance:
         return self.ticket_prices.get(city, "Unknown")
 
 
-    tools = [
-        {
-            "name": "get_ticket_price",
-            "description": "Get the price of a return ticket to the destination city. Call this whenever you need to know the ticket price, for example when a customer asks 'How much is a ticket to this city'",
-            "parameters": {
-                "type": "object",
-                "required": [
-                    "destination_city"
-                ],
-                "properties": {
-                    "destination_city": {
-                        "type": "string",
-                        "description": "The city that the customer wants to travel to"
-                    },
+    get_ticket_function = {
+        "name": "get_ticket_price",
+        "description": "Get the price of a return ticket to the destination city. Call this whenever you need to know the ticket price, for example when a customer asks 'How much is a ticket to this city'",
+        "parameters": {
+            "type": "object",
+            "required": [ "destination_city" ],
+            "properties": {
+                "destination_city": {
+                    "type": "string",
+                    "description": "The city that the customer wants to travel to"
                 },
-                "additionalProperties": False
-            }
+            },
         }
-    ]
+    }
+
 
     def chat(self, message):
         messages = [
-            { "role" : "system", "content": self.system_message},
-            { "role": "user", "content": message}
+            types.Content(role="model", parts=[types.Part(text=self.system_message)]),
+            types.Content(role="user", parts=[types.Part(text=message)])
         ]
-        print(messages)
-        response = ollama.chat(model="llama3.2", messages=messages, tools=self.tools, options={"temperature": 0})
 
-        msg = response['message']
 
-        if "tool_calls" in msg:
-            tool_call = msg['tool_calls'][0]
+        client = genai.Client()
+        tools = types.Tool(function_declarations=[self.get_ticket_function])
+        config = types.GenerateContentConfig(tools=[tools])
 
-            if not tool_call['function'].get('name'):
-                tool_call['function']['name'] = 'get_ticket_price'
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents= messages,
+            config=config
+        )
 
-            response, city = self.handle_tool_calls(tool_call)
-            messages.append({
-                "role": "assistant",
-                "content": "",
-                "tool_calls": msg['tool_calls']
-            })
+        if response.candidates[0].content.parts[0].function_call:
+            model_resp = response.candidates[0].content
+            function_call = response.candidates[0].content.parts[0].function_call
+            response, city = self.handle_tool_calls(function_call)
+            messages.append(model_resp)
             messages.append(response)
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=messages,
+            )
+            return response.text
 
-            response = ollama.chat(model="llama3.2", messages=messages, options={"temperature": 0})
-
-        return response['message']['content']
+        else:
+            return response.text
 
     def handle_tool_calls(self, tool_call):
-        print("tools calls: ", tool_call)
-        arguments = tool_call["function"]["arguments"]
-        print("Arguments: ", arguments)
-        city = arguments.get('destination_city' )
+        arguments = tool_call.args
+        city = arguments.get('destination_city')
         price = self.get_ticket_price(city)
-        response = {
-            "role": "tools",
-            "content": json.dumps({ "destination_city": city, "price": price}),
-        }
+        function_response_part = types.Part.from_function_response(
+            name=tool_call.name,
+            response={"destination_city": city, "price": price},
+        )
+        response = types.Content(
+            role="user",
+            parts=[function_response_part]
+        )
 
         return response, city

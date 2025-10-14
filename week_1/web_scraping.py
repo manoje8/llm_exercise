@@ -129,7 +129,6 @@ class Website:
         result = "Landing page:\n"
         result += Website(url, self.choose).get_contents()
         links = self.get_links(url)
-        print("Found links:", links)
         for link in links["links"]:
             result += f"\n\n{link['type']}\n"
             result += Website(link["url"], self.choose).get_contents()

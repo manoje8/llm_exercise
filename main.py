@@ -60,11 +60,30 @@ def week1():
         agent(model)
 
 def week_2():
-    assistance = AirAssistance()
-    assistance.get_ticket_price("berlin")
-    resp = assistance.chat("How much is a ticket to Paris?")
-    st.text("completed")
-    st.markdown(resp)
+    bot = AirAssistance()
+
+    if st.button("Restart Chat"):
+        st.session_state.messages = []
+        st.rerun()
+
+    if "messages" not in st.session_state:
+        st.session_state.messages = []
+
+    for message in st.session_state.messages:
+        with st.chat_message(message['role']):
+            st.markdown(message['content'])
+
+    if prompt := st.chat_input("Say buddy! Don't hold your questions?"):
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        st.session_state.messages.append({"role": "user", "content": prompt})
+
+        response = bot.chat(prompt)
+
+        with st.chat_message("assistant"):
+            st.markdown(response)
+        st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 if __name__ == "__main__":
     st.title("LLM practice")
@@ -76,4 +95,3 @@ if __name__ == "__main__":
         week1()
     else:
         week_2()
-        st.text("Coming Soon")
