@@ -7,6 +7,7 @@ from openai import OpenAI
 from week_1.web_scraping import Website
 from week_1.week1 import summarize, agent
 from week_2.airline_assistant import AirAssistance
+from week_3.open_llm import OpenLLMModel
 
 
 def choose_model():
@@ -85,13 +86,23 @@ def week_2():
         st.session_state.messages.append({"role": "assistant", "content": response})
 
 
+def week_3():
+    result = OpenLLMModel('google/gemma-3-270m-it')
+    output = result.generate('Give me a nice sports joke', quantz=True)
+    print(output)
+
+
 if __name__ == "__main__":
     st.title("LLM practice")
     week = st.selectbox(
         "Choose the weekly exercise?",
-        ("Week 1", "Week 2")
+        ("Week 1", "Week 2", "Week 3")
     )
     if week == "Week 1":
         week1()
-    else:
+    elif week == "Week 2":
         week_2()
+    elif week == "Week 3":
+        week_3()
+    else:
+        st.warning("No exercises")

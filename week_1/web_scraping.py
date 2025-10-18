@@ -6,7 +6,6 @@ from bs4 import BeautifulSoup
 from google import genai
 
 
-
 class Website:
     def __init__(self, url, choose):
         self.url = url
