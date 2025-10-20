@@ -87,9 +87,17 @@ def week_2():
 
 
 def week_3():
-    result = OpenLLMModel('google/gemma-3-270m-it')
-    output = result.generate('Give me a nice sports joke', quantz=True)
-    print(output)
+    user_input = st.text_input(label="Say something")
+    if st.button("Send") and user_input.strip():
+        st.info("AI model loading...")
+        result = OpenLLMModel('google/gemma-3-270m-it')
+        messages = [
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": user_input},
+        ]
+        st.info("Model generating")
+        output = result.generate(messages)
+        st.markdown(output)
 
 
 if __name__ == "__main__":
