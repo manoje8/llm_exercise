@@ -13,15 +13,11 @@ class CodeConvertor:
              """
              }
         ]
-        self.compile_command = ["clang++", "-std=c++17", "-Ofast", "-mcpu=native", "-flto=thin", "-fvisibility=hidden", "-DNDEBUG", "main.cpp", "-o", "main"]
+        self.compile_command = ["clang++", "-std=c++13", "-Ofast", "-mcpu=native", "-flto=thin", "-fvisibility=hidden", "-DNDEBUG", "main.cpp", "-o", "main"]
 
 
-    def gemini_generator(self, message):
-        return message
-
-    def llama_generator(self, code):
-        print("Loading...")
-        self.__system_message.append({
+    def user_prompt(self, code):
+        message = {
             "role": 'user',
             "content": f"""
             Port this Python code to C++ with the fastest possible implementation that produces identical output in the least time.
@@ -33,13 +29,28 @@ class CodeConvertor:
             {code}
             ```
             """
-        })
+        }
+        return message
+
+    def write_output(self, code):
+        with open('week_4/main.cpp', 'w', encoding='utf-8') as f:
+            f.write(code)
+
+
+    def gemini_generator(self, message):
+        return message
+
+    def llama_generator(self, code):
+        print("Loading...")
+        self.__system_message.append(self.user_prompt(code))
         response = ollama.chat(
             model="llama3.2",
-            messages=self.__system_message,
-            stream=True
+            messages=self.__system_message
         )
-        return response
+        result = response.message.content
+        rep = result.replace('```cpp', '').replace('```', '')
+        self.write_output(rep)
+        return rep
 
     def convert(self, code):
         result = None
