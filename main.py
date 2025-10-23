@@ -1,5 +1,7 @@
 import os
 import streamlit as st
+from jinja2.compiler import CodeGenerator
+
 from week_1.simple_chat import Chat
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -8,6 +10,9 @@ from week_1.web_scraping import Website
 from week_1.week1 import summarize, agent
 from week_2.airline_assistant import AirAssistance
 from week_3.open_llm import OpenLLMModel
+import time
+
+from week_4.codeConvertor import CodeConvertor
 
 
 def choose_model():
@@ -87,6 +92,7 @@ def week_2():
 
 
 def week_3():
+    st.header("LLM Model")
     user_input = st.text_input(label="Say something")
     if st.button("Send") and user_input.strip():
         st.info("AI model loading...")
@@ -99,18 +105,72 @@ def week_3():
         output = result.generate(messages)
         st.markdown(output)
 
+def week_4():
+    st.title("Python → C++ Converter")
+    convertor = CodeConvertor("LLAMA")
+    pi = """
+    import time
+
+    def calculate(iterations, param1, param2):
+        result = 1.0
+        for i in range(1, iterations+1):
+            j = i * param1 - param2
+            result -= (1/j)
+            j = i * param1 + param2
+            result += (1/j)
+        return result
+
+    start_time = time.time()
+    result = calculate(200_000_000, 4, 1) * 4
+    end_time = time.time()
+
+    print(f"Result: {result:.12f}")
+    print(f"Execution Time: {(end_time - start_time):.6f} seconds")
+    """
+    cols1, cols2 = st.columns(2)
+    with cols1:
+        cols1.header("Python Code")
+        py_input = st.text_area(
+            "Enter your Python code here:",
+            value=pi,
+            height="content"
+        )
+
+
+    cols2.header("C++ Code")
+    if st.button("Convert"):
+        with cols2:
+            result = convertor.convert(py_input)
+            output = st.empty()
+            collected_text = ""
+            for chunk in result:
+                if "message" in chunk and "content" in chunk["message"]:
+                    collected_text += chunk["message"]["content"]
+                    output.text(collected_text)
+
+
+
+
 
 if __name__ == "__main__":
-    st.title("LLM practice")
-    week = st.selectbox(
-        "Choose the weekly exercise?",
-        ("Week 1", "Week 2", "Week 3")
-    )
-    if week == "Week 1":
-        week1()
-    elif week == "Week 2":
-        week_2()
-    elif week == "Week 3":
-        week_3()
-    else:
-        st.warning("No exercises")
+    st.set_page_config(layout="wide")
+    col1, col2 = st.columns([1,3], gap="large")
+
+    with col1:
+
+        st.title("LLM practice")
+        week = st.selectbox(
+            "Choose the weekly exercise?",
+            ("Week 1", "Week 2", "Week 3", "Week 4")
+        )
+    with col2:
+        if week == "Week 1":
+            week1()
+        elif week == "Week 2":
+            week_2()
+        elif week == "Week 3":
+            week_3()
+        elif week == "Week 4":
+            week_4()
+        else:
+            st.warning("No exercises")
